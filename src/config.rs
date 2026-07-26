@@ -89,7 +89,7 @@ pub fn register_shortcut(binding: &str) {
     // Detect installed binary path (check common locations)
     let bin = ["/usr/bin/lincy", "/usr/local/bin/lincy"].iter()
         .find(|p| std::path::Path::new(p).exists())
-        .map(|&s| s)
+        .copied()
         .unwrap_or("$HOME/.local/bin/lincy");
 
     let schema_path = format!("{}:{}", schema_key, base_path);
