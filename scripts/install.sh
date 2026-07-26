@@ -56,7 +56,13 @@ for size in scalable symbolic; do
         cp -v "$src"/*.svg "$dest/"
     fi
 done
-gtk-update-icon-cache "$HOME/.local/share/icons/hicolor/" 2>/dev/null || true
+# Also copy scalable icon to fixed sizes for tray compatibility
+for px in 24 32 48; do
+    mkdir -p "$HOME/.local/share/icons/hicolor/${px}x${px}/apps"
+    cp "$PROJECT_DIR/data/icons/hicolor/scalable/apps/lincy.svg" \
+       "$HOME/.local/share/icons/hicolor/${px}x${px}/apps/lincy.svg"
+done
+gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor/" 2>/dev/null || true
 echo "  ${GREEN}✓${RESET} Icons installed"
 
 # ── Install desktop entry + autostart ──────────────────────

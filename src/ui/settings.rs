@@ -180,24 +180,23 @@ pub fn show_settings(parent: &Window, current: &Settings) -> SettingsResult {
     let r3 = result.clone();
     let d3 = dialog.clone();
     clear_btn.connect_clicked(move |_| {
-        let confirm = gtk4::MessageDialog::new(
-            Some(&d3),
-            gtk4::DialogFlags::MODAL,
-            gtk4::MessageType::Warning,
-            gtk4::ButtonsType::OkCancel,
-            "Clear all unpinned clipboard history?",
-        );
-        confirm.set_secondary_text(Some("This cannot be undone."));
+        let confirm = gtk4::AlertDialog::builder()
+            .message("Clear all unpinned clipboard history?")
+            .detail("This cannot be undone.")
+            .buttons(["Cancel", "Clear"].as_slice())
+            .default_button(1)
+            .cancel_button(0)
+            .build();
         let r = r3.clone();
         let d = d3.clone();
-        confirm.connect_response(move |dlg, resp| {
-            if resp == gtk4::ResponseType::Ok {
-                *r.borrow_mut() = SettingsResult::ClearHistory;
-                d.close();
+        confirm.choose(Some(&d3), gtk4::gio::Cancellable::NONE, move |res| {
+            if let Ok(choice) = res {
+                if choice == 1 {
+                    *r.borrow_mut() = SettingsResult::ClearHistory;
+                    d.close();
+                }
             }
-            dlg.close();
         });
-        confirm.present();
     });
 
     dialog.present();
