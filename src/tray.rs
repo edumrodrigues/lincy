@@ -108,7 +108,7 @@ impl Tray for LincyTray {
 
         let settings_tx = self.sender.clone();
         items.push(MenuItem::Standard(StandardItem {
-            label: "⚙ Settings…".into(), enabled: true, visible: true,
+            label: "Settings".into(), enabled: true, visible: true,
             icon_name: String::new(), icon_data: vec![], shortcut: vec![],
             disposition: ksni::menu::Disposition::Normal,
             activate: Box::new(move |_| { let _ = settings_tx.send(TrayAction::Settings); }),

@@ -82,7 +82,7 @@ pub fn show_settings(parent: &Window, current: &Settings) -> SettingsResult {
     vbox.set_margin_top(16); vbox.set_margin_bottom(16);
     dialog.set_child(Some(&vbox));
 
-    let title = Label::new(Some("⚙ Settings"));
+    let title = Label::new(Some("Settings"));
     vbox.append(&title);
 
     let grid = Grid::new();
