@@ -4,6 +4,9 @@ on:
   push:
     tags: ["v*"]
 
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -34,13 +37,13 @@ jobs:
           Architecture: amd64
           Depends: libgtk-4-1, libadwaita-1-0, libsqlite3-0
           Maintainer: Eduardo Rodrigues
-          Description: Lightweight clipboard manager for GNOME/Wayland
+          Description: Lightweight clipboard manager for Linux
            Simple, fast, keyboard-driven clipboard history with GTK4 popup,
            image support, pinning, and system tray integration.
           EOF
 
           dpkg-deb --build $DEB
-          echo "DEB=$DEB.deb" >> $GITHUB_ENV
+          echo "DEB=$DEB" >> $GITHUB_ENV
 
       - name: Build tar.gz (portable)
         run: |
@@ -59,5 +62,3 @@ jobs:
             ${{ env.DEB }}.deb
             lincy-linux-x86_64.tar.gz
           generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
