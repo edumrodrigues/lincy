@@ -1,8 +1,8 @@
 # Lincy
 
-> Lightweight clipboard manager for Ubuntu/Linux, inspired by [Maccy](https://github.com/p0deje/Maccy).
+> Lightweight clipboard manager for Linux, inspired by [Maccy](https://github.com/p0deje/Maccy).
 
-Simple, fast, keyboard-driven. Built with Rust, GTK4, and Libadwaita for native GNOME/Wayland integration.
+Simple, fast, keyboard-driven. Built with Rust and GTK4.
 
 [![CI](https://github.com/edumrodrigues/lincy/actions/workflows/ci.yml/badge.svg)](https://github.com/edumrodrigues/lincy/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/edumrodrigues/lincy)](https://github.com/edumrodrigues/lincy/releases)
