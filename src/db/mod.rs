@@ -8,23 +8,17 @@ use std::sync::Mutex;
 use crate::config;
 use crate::error::LincyError;
 
-/// Opens a connection to the SQLite database, creating the data directory
-/// and running migrations as needed.
 pub fn open_connection() -> Result<Connection, LincyError> {
     let db_path = config::db_path();
-
     if let Some(parent) = db_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-
     let conn = Connection::open(&db_path)?;
     migrations::initialize_db(&conn)?;
-
     log::info!("Database opened at: {}", db_path.display());
     Ok(conn)
 }
 
-/// A thread-safe wrapper around the database connection.
 pub struct Database {
     conn: Mutex<Connection>,
 }
@@ -32,43 +26,48 @@ pub struct Database {
 impl Database {
     pub fn new() -> Result<Self, LincyError> {
         let conn = open_connection()?;
-        Ok(Self {
-            conn: Mutex::new(conn),
-        })
+        Ok(Self { conn: Mutex::new(conn) })
     }
 
+    pub fn insert_text(&self, content: &str) -> Result<models::ClipboardItem, LincyError> {
+        queries::insert_text(&self.conn.lock().unwrap(), content)
+    }
+
+    pub fn insert_image(
+        &self,
+        rgba: &[u8],
+        width: i32,
+        height: i32,
+    ) -> Result<models::ClipboardItem, LincyError> {
+        queries::insert_image(&self.conn.lock().unwrap(), rgba, width, height)
+    }
+
+    // Kept for backward compat in clipboard polling
     pub fn insert_or_update(&self, content: &str) -> Result<models::ClipboardItem, LincyError> {
-        let conn = self.conn.lock().unwrap();
-        queries::insert_or_update(&conn, content)
+        self.insert_text(content)
     }
 
     pub fn list_recent(&self, limit: i64) -> Result<Vec<models::ClipboardItem>, LincyError> {
-        let conn = self.conn.lock().unwrap();
-        queries::list_recent(&conn, limit)
+        queries::list_recent(&self.conn.lock().unwrap(), limit)
     }
 
     pub fn search(&self, query: &str, limit: i64) -> Result<Vec<models::ClipboardItem>, LincyError> {
-        let conn = self.conn.lock().unwrap();
-        queries::search(&conn, query, limit)
+        queries::search(&self.conn.lock().unwrap(), query, limit)
     }
 
     pub fn toggle_pin(&self, id: i64) -> Result<(), LincyError> {
-        let conn = self.conn.lock().unwrap();
-        queries::toggle_pin(&conn, id)
+        queries::toggle_pin(&self.conn.lock().unwrap(), id)
     }
 
     pub fn delete_item(&self, id: i64) -> Result<(), LincyError> {
-        let conn = self.conn.lock().unwrap();
-        queries::delete_item(&conn, id)
+        queries::delete_item(&self.conn.lock().unwrap(), id)
     }
 
     pub fn delete_all_unpinned(&self) -> Result<(), LincyError> {
-        let conn = self.conn.lock().unwrap();
-        queries::delete_all_unpinned(&conn)
+        queries::delete_all_unpinned(&self.conn.lock().unwrap())
     }
 
     pub fn count(&self) -> Result<i64, LincyError> {
-        let conn = self.conn.lock().unwrap();
-        queries::count(&conn)
+        queries::count(&self.conn.lock().unwrap())
     }
 }
