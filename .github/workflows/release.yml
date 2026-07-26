@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt update && sudo apt install -y libgtk-4-dev libadwaita-1-dev libsqlite3-dev pkg-config
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+      - run: cargo test --release
+
+      - name: Build .deb package
+        run: |
+          BIN=target/release/lincy
+          DEB=lincy_${{ github.ref_name }}_amd64
+          mkdir -p $DEB/DEBIAN $DEB/usr/bin $DEB/usr/share/icons/hicolor/scalable/apps $DEB/usr/share/icons/hicolor/symbolic/apps $DEB/usr/share/applications
+
+          cp $BIN $DEB/usr/bin/
+          cp data/icons/hicolor/scalable/apps/lincy.svg $DEB/usr/share/icons/hicolor/scalable/apps/
+          cp data/icons/hicolor/symbolic/apps/lincy-symbolic.svg $DEB/usr/share/icons/hicolor/symbolic/apps/
+          cp data/lincy.desktop $DEB/usr/share/applications/
+          sed -i "s|LINCY_BIN|/usr/bin/lincy|" $DEB/usr/share/applications/lincy.desktop
+
+          cat > $DEB/DEBIAN/control << EOF
+          Package: lincy
+          Version: ${GITHUB_REF_NAME#v}
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Depends: libgtk-4-1, libadwaita-1-0, libsqlite3-0
+          Maintainer: Eduardo Rodrigues
+          Description: Lightweight clipboard manager for GNOME/Wayland
+           Simple, fast, keyboard-driven clipboard history with GTK4 popup,
+           image support, pinning, and system tray integration.
+          EOF
+
+          dpkg-deb --build $DEB
+          echo "DEB=$DEB.deb" >> $GITHUB_ENV
+
+      - name: Build tar.gz (portable)
+        run: |
+          mkdir -p release/lincy
+          cp target/release/lincy release/lincy/
+          cp README.md LICENSE release/lincy/ 2>/dev/null || true
+          cp data/lincy.desktop release/lincy/
+          cp -r data/icons release/lincy/
+          cp scripts/install.sh release/lincy/
+          cp scripts/uninstall.sh release/lincy/
+          cd release && tar -czf ../lincy-linux-x86_64.tar.gz lincy
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ env.DEB }}.deb
+            lincy-linux-x86_64.tar.gz
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Lincy
+Comment=Lightweight Clipboard Manager
+Exec=LINCY_BIN
+Icon=lincy
+Type=Application
+Terminal=false
+Categories=Utility;
+StartupNotify=false
+X-GNOME-Autostart-enabled=true

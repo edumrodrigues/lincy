@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test-ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt update && sudo apt install -y libgtk-4-dev libadwaita-1-dev libsqlite3-dev pkg-config
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+      - run: cargo test --release
+
+  test-fedora:
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: dnf install -y gtk4-devel libadwaita-devel sqlite-devel pkg-config gcc
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+      - run: cargo test --release
+
+  test-arch:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pacman -Syu --noconfirm gtk4 libadwaita sqlite pkg-config base-devel
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+      - run: cargo test --release
+
+  test-debian:
+    runs-on: ubuntu-latest
+    container: debian:stable
+    steps:
+      - uses: actions/checkout@v4
+      - run: apt update && apt install -y libgtk-4-dev libadwaita-1-dev libsqlite3-dev pkg-config curl build-essential
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+      - run: cargo test --release
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt update && sudo apt install -y libgtk-4-dev libadwaita-1-dev libsqlite3-dev pkg-config
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo clippy -- -D warnings
