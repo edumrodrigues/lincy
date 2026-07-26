@@ -5,17 +5,33 @@
 Simple, fast, keyboard-driven. Built with Rust, GTK4, and Libadwaita for native GNOME/Wayland integration.
 
 [![CI](https://github.com/edumrodrigues/lincy/actions/workflows/ci.yml/badge.svg)](https://github.com/edumrodrigues/lincy/actions/workflows/ci.yml)
-[![GitHub release](https://img.shields.io/github/v/release/edumrodrigues/lincy)](https://github.com/edumrodrigues/lincy/releases)
+[![Release](https://img.shields.io/github/v/release/edumrodrigues/lincy)](https://github.com/edumrodrigues/lincy/releases)
+
+**Built & tested on:** ![Ubuntu](https://img.shields.io/badge/Ubuntu-passing-brightgreen) ![Fedora](https://img.shields.io/badge/Fedora-passing-brightgreen) ![Arch](https://img.shields.io/badge/Arch-passing-brightgreen) ![Debian](https://img.shields.io/badge/Debian-passing-brightgreen)
+
+## Compatibility
+
+| Desktop | Clipboard | Tray | Hotkey |
+|---------|-----------|------|--------|
+| GNOME (Wayland) | arboard/XWayland | ksni/D-Bus | gsettings |
+| GNOME (X11) | arboard/X11 | ksni/D-Bus | gsettings |
+| KDE Plasma | arboard/XWayland | ksni/D-Bus | gsettings |
+| XFCE, Cinnamon, MATE | arboard | ksni/D-Bus | gsettings |
+| Sway, Hyprland (wlroots) | arboard/XWayland | ksni/D-Bus | manual |
+
+> Requires: GTK4 runtime, XWayland (for clipboard access), D-Bus session (for tray).
 
 ## Features
 
-- **Event-based clipboard monitoring** — uses GDK4's native clipboard signals (no polling)
-- **System tray icon** — always accessible from the GNOME top bar
-- **Popup search window** — Maccy-style centered popup with instant search
-- **Keyboard navigation** — arrow keys, Enter to copy, Escape to close, Ctrl+P to pin
-- **Pin items** — keep important items at the top of the list
+- **Clipboard history** — text + image support, polling every 500ms
+- **System tray icon** — accessible from the top bar, menu shows recent items
+- **Popup search window** — Maccy-style centered popup, real-time filter
+- **Keyboard navigation** — arrows, Enter to copy, Escape to close, Ctrl+P to pin
+- **Image thumbnails** — previews in list, copy images back to clipboard
+- **Pin items** — keep important items at the top
 - **Deduplication** — SHA-256 hash prevents duplicate entries
-- **Hotkey** — Ctrl+Shift+C (via xdg-desktop-portal, best-effort on Wayland)
+- **Configurable** — thumbnail size, max items, shortcut, clear history
+- **Hotkey** — customizable, auto-registered via gsettings
 
 ## Requirements
 
