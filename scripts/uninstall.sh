@@ -53,13 +53,12 @@ else
     echo "[4/6] Autostart not found"
 fi
 
-# 5. Remove icons
+# 5. Remove icons + cache
 echo "[5/6] Removing icons..."
 ICON_REMOVED=false
-for size in scalable symbolic; do
-    icon="$HOME/.local/share/icons/hicolor/$size/apps/lincy.svg"
-    icon_symbolic="$HOME/.local/share/icons/hicolor/$size/apps/lincy-symbolic.svg"
-    for f in "$icon" "$icon_symbolic"; do
+for dir in scalable symbolic 24x24 32x32 48x48; do
+    for name in lincy.svg lincy-symbolic.svg lincy.png; do
+        f="$HOME/.local/share/icons/hicolor/$dir/apps/$name"
         if [ -f "$f" ]; then
             rm -f "$f"
             echo "  Removed $f"
@@ -67,8 +66,13 @@ for size in scalable symbolic; do
         fi
     done
 done
+# Remove cache file so it's regenerated clean
+if [ -f "$HOME/.local/share/icons/hicolor/icon-theme.cache" ]; then
+    rm -f "$HOME/.local/share/icons/hicolor/icon-theme.cache"
+    echo "  Removed icon cache"
+    ICON_REMOVED=true
+fi
 if [ "$ICON_REMOVED" = true ]; then
-    gtk-update-icon-cache "$HOME/.local/share/icons/hicolor/" 2>/dev/null || true
     echo "  ${GREEN}✓${RESET} Icons removed"
     REMOVED=true
 else
