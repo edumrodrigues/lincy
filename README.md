@@ -27,7 +27,9 @@ sudo apt install -y libgtk-4-dev libadwaita-1-dev libsqlite3-dev pkg-config
 
 - Rust stable: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
 
-## Quick Install
+## Install
+
+### From source
 
 ```bash
 git clone git@github.com:edumrodrigues/lincy.git
@@ -35,12 +37,32 @@ cd lincy
 ./scripts/install.sh
 ```
 
+### From crates.io (coming soon)
+
+```bash
+cargo install lincy
+lincy &
+```
+
+### From GitHub Releases (coming soon)
+
+Download the latest binary from the [releases page](https://github.com/edumrodrigues/lincy/releases), extract, and run `./install.sh`.
+
 The installer:
 1. Checks/installs system dependencies
 2. Builds the release binary
 3. Installs to `~/.local/bin/lincy`
 4. Installs icons to `~/.local/share/icons/`
-5. Creates desktop entry and autostart
+5. Creates desktop entry, autostart, and registers Ctrl+Shift+C shortcut
+
+## Distro packages (community)
+
+| Distro | Status |
+|--------|--------|
+| Ubuntu/Debian | `./scripts/install.sh` |
+| Fedora | Build from source |
+| Arch (AUR) | Coming soon |
+| Flatpak | Coming soon |
 
 ## Usage
 

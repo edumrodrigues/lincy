@@ -153,3 +153,95 @@ pub fn delete_all_unpinned(conn: &Connection) -> Result<(), LincyError> {
 pub fn count(conn: &Connection) -> Result<i64, LincyError> {
     Ok(conn.query_row("SELECT COUNT(*) FROM clipboard_history", [], |r| r.get(0))?)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::migrations;
+
+    fn setup() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        migrations::initialize_db(&conn).unwrap();
+        conn
+    }
+
+    #[test]
+    fn test_text_insert_and_dedup() {
+        let conn = setup();
+        let a = insert_text(&conn, "hello").unwrap();
+        let b = insert_text(&conn, "hello").unwrap();
+        assert_eq!(a.id, b.id);
+        assert_eq!(b.usage_count, 2);
+        assert_eq!(count(&conn).unwrap(), 1);
+    }
+
+    #[test]
+    fn test_search() {
+        let conn = setup();
+        insert_text(&conn, "apple pie").unwrap();
+        insert_text(&conn, "banana").unwrap();
+        insert_text(&conn, "apple tart").unwrap();
+        assert_eq!(search(&conn, "apple", 10).unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_search_excludes_images() {
+        let conn = setup();
+        insert_text(&conn, "text").unwrap();
+        insert_image(&conn, &[0u8; 16], 10, 10).unwrap();
+        assert!(search(&conn, "image", 10).unwrap().iter().all(|i| i.content_type == "text"));
+        assert_eq!(list_recent(&conn, 10).unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_toggle_pin() {
+        let conn = setup();
+        let item = insert_text(&conn, "pin me").unwrap();
+        assert!(!item.pinned);
+        toggle_pin(&conn, item.id).unwrap();
+        assert!(list_recent(&conn, 10).unwrap()[0].pinned);
+        toggle_pin(&conn, item.id).unwrap();
+        assert!(!list_recent(&conn, 10).unwrap()[0].pinned);
+    }
+
+    #[test]
+    fn test_delete_item() {
+        let conn = setup();
+        insert_text(&conn, "x").unwrap();
+        assert_eq!(count(&conn).unwrap(), 1);
+        delete_item(&conn, list_recent(&conn, 1).unwrap()[0].id).unwrap();
+        assert_eq!(count(&conn).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_delete_all_unpinned() {
+        let conn = setup();
+        let p = insert_text(&conn, "keep").unwrap();
+        toggle_pin(&conn, p.id).unwrap();
+        insert_text(&conn, "del1").unwrap();
+        insert_text(&conn, "del2").unwrap();
+        assert_eq!(count(&conn).unwrap(), 3);
+        delete_all_unpinned(&conn).unwrap();
+        assert_eq!(count(&conn).unwrap(), 1);
+    }
+
+    #[test]
+    fn test_image_dedup() {
+        let conn = setup();
+        let a = insert_image(&conn, &[1,2,3,4], 16, 16).unwrap();
+        let b = insert_image(&conn, &[1,2,3,4], 16, 16).unwrap();
+        assert_eq!(a.id, b.id);
+        let c = insert_image(&conn, &[5,6,7,8], 32, 32).unwrap();
+        assert_ne!(a.id, c.id);
+        assert_eq!(count(&conn).unwrap(), 2);
+    }
+
+    #[test]
+    fn test_list_pinned_first() {
+        let conn = setup();
+        insert_text(&conn, "a").unwrap();
+        let p = insert_text(&conn, "b").unwrap();
+        toggle_pin(&conn, p.id).unwrap();
+        assert!(list_recent(&conn, 10).unwrap()[0].pinned);
+    }
+}

@@ -1,0 +1,29 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt update && sudo apt install -y libgtk-4-dev libadwaita-1-dev libsqlite3-dev pkg-config
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+      - run: cargo test --release
+      - name: Package
+        run: |
+          mkdir -p release/lincy
+          cp target/release/lincy release/lincy/
+          cp README.md LICENSE release/lincy/ 2>/dev/null || true
+          cp data/lincy.desktop release/lincy/
+          cp -r data/icons release/lincy/
+          cp scripts/install.sh release/lincy/
+          tar -czf lincy-linux-x86_64.tar.gz -C release lincy
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: lincy-linux-x86_64.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

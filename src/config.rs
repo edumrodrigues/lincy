@@ -62,3 +62,36 @@ impl Settings {
         let _ = std::fs::write(settings_path(), serde_json::to_string_pretty(self).unwrap());
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_defaults() {
+        let s = Settings::default();
+        assert!(s.thumb_size >= 16);
+        assert!(s.max_items >= 5);
+        assert!(!s.shortcut.is_empty());
+    }
+
+    #[test]
+    fn test_roundtrip() {
+        let s = Settings { thumb_size: 32, max_items: 200, shortcut: "Ctrl+Alt+X".into() };
+        let json = serde_json::to_string(&s).unwrap();
+        let restored: Settings = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.thumb_size, 32);
+        assert_eq!(restored.max_items, 200);
+        assert_eq!(restored.shortcut, "Ctrl+Alt+X");
+    }
+
+    #[test]
+    fn test_partial_json() {
+        // Missing fields use defaults
+        let json = r#"{"thumb_size": 48}"#;
+        let s: Settings = serde_json::from_str(json).unwrap();
+        assert_eq!(s.thumb_size, 48);
+        assert_eq!(s.max_items, default_max_items());
+        assert_eq!(s.shortcut, default_shortcut());
+    }
+}
