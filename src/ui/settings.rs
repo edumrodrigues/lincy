@@ -59,14 +59,43 @@ fn to_human(mods: gtk4::gdk::ModifierType, keyval: Key) -> String {
 
 fn register_shortcut(binding: &str) {
     let schema_path = "org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/lincy/";
-    let result = std::process::Command::new("gsettings")
-        .args(["set", schema_path, "binding", binding])
-        .output();
-    match result {
-        Ok(o) if o.status.success() => log::info!("Shortcut registered: {}", binding),
-        Ok(o) => log::error!("gsettings failed: {}", String::from_utf8_lossy(&o.stderr)),
-        Err(e) => log::error!("gsettings error: {}", e),
+    let path = schema_path.trim_end_matches('/');
+
+    // Ensure custom keybinding list includes our path
+    let current = std::process::Command::new("gsettings")
+        .args(["get", "org.gnome.settings-daemon.plugins.media-keys", "custom-keybindings"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default();
+
+    if !current.contains("lincy") {
+        let new_list = if current.trim() == "@as []" || current.trim().is_empty() {
+            format!("['{}']", path)
+        } else {
+            current.trim().trim_end_matches(']').to_string() + &format!(", '{}']", path)
+        };
+        let _ = std::process::Command::new("gsettings")
+            .args(["set", "org.gnome.settings-daemon.plugins.media-keys", "custom-keybindings", &new_list])
+            .output();
     }
+
+    // Detect binary path
+    let bin = if std::path::Path::new("/usr/bin/lincy").exists() {
+        "/usr/bin/lincy"
+    } else if std::path::Path::new("/usr/local/bin/lincy").exists() {
+        "/usr/local/bin/lincy"
+    } else {
+        "$HOME/.local/bin/lincy"
+    };
+
+    // Set binding, command, name
+    for (key, val) in [("binding", binding), ("command", bin), ("name", "Lincy")] {
+        let _ = std::process::Command::new("gsettings")
+            .args(["set", schema_path, key, val])
+            .output();
+    }
+    log::info!("Shortcut {} → {}", binding, bin);
 }
 
 pub fn show_settings(parent: &Window, current: &Settings) -> SettingsResult {
@@ -101,19 +130,21 @@ pub fn show_settings(parent: &Window, current: &Settings) -> SettingsResult {
 
     grid.attach(&Label::new(Some("Shortcut:")), 0, 2, 1, 1);
 
-    // Shortcut capture button
-    let shortcut_btn = Button::with_label(&current.shortcut);
-    shortcut_btn.set_hexpand(true);
-    let captured: Rc<RefCell<Option<(gtk4::gdk::ModifierType, Key)>>> = Rc::new(RefCell::new(None));
+    // Shortcut capture entry (read-only, captures keys)
+    let shortcut_entry = gtk4::Entry::new();
+    shortcut_entry.set_text(&current.shortcut);
+    shortcut_entry.set_editable(false);
+    shortcut_entry.set_hexpand(true);
+    shortcut_entry.set_placeholder_text(Some("Click here then press keys…"));
     let captured_label = Rc::new(RefCell::new(current.shortcut.clone()));
     let shortcut_binding = Rc::new(RefCell::new(String::new()));
+    let recording = Rc::new(RefCell::new(false));
 
-    let btn_label = shortcut_btn.clone();
-    let captured_btn = captured.clone();
-    let captured_label_btn = captured_label.clone();
-    let captured_binding = shortcut_binding.clone();
+    let entry_label = shortcut_entry.clone();
+    let rec = recording.clone();
+    let cap_label = captured_label.clone();
+    let cap_binding = shortcut_binding.clone();
 
-    // Key controller on the button
     let key_ctrl = gtk4::EventControllerKey::new();
     key_ctrl.connect_key_pressed(move |_ctrl, keyval, _code, mods| {
         if keyval != Key::Control_L && keyval != Key::Control_R
@@ -124,22 +155,28 @@ pub fn show_settings(parent: &Window, current: &Settings) -> SettingsResult {
         {
             let human = to_human(mods, keyval);
             let binding = to_gsettings_binding(mods, keyval);
-            btn_label.set_label(&human);
-            *captured_btn.borrow_mut() = Some((mods, keyval));
-            *captured_label_btn.borrow_mut() = human;
-            *captured_binding.borrow_mut() = binding;
+            entry_label.set_text(&human);
+            *cap_label.borrow_mut() = human;
+            *cap_binding.borrow_mut() = binding;
+            *rec.borrow_mut() = false;
         }
         Propagation::Stop
     });
-    shortcut_btn.add_controller(key_ctrl);
+    shortcut_entry.add_controller(key_ctrl);
 
-    // Click to focus and capture
-    shortcut_btn.connect_clicked(|btn| {
-        btn.set_label("Press keys…");
-        btn.grab_focus();
+    // Focus in = start recording
+    shortcut_entry.connect_has_focus_notify({
+        let e = shortcut_entry.clone();
+        let r = recording.clone();
+        move |entry| {
+            if entry.has_focus() {
+                *r.borrow_mut() = true;
+                e.set_text("Press keys…");
+            }
+        }
     });
 
-    grid.attach(&shortcut_btn, 1, 2, 1, 1);
+    grid.attach(&shortcut_entry, 1, 2, 1, 1);
 
     let clear_btn = Button::with_label("Clear All History");
     clear_btn.add_css_class("destructive-action");
