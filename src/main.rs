@@ -48,6 +48,9 @@ fn main() {
 
             log::info!("Starting Lincy");
 
+            // Ensure shortcut is registered on every startup
+            config::register_shortcut(&settings.borrow().shortcut);
+
             let db = match db::Database::new() {
                 Ok(db) => { log::info!("DB ready ({} items)", db.count().unwrap_or(0)); Arc::new(db) }
                 Err(e) => { log::error!("DB: {}", e); return; }

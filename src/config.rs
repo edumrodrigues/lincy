@@ -63,6 +63,44 @@ impl Settings {
     }
 }
 
+/// Register the GNOME custom shortcut. Idempotent — safe to call on every startup.
+pub fn register_shortcut(binding: &str) {
+    let base_path = "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/lincy/";
+    let schema_key = "org.gnome.settings-daemon.plugins.media-keys.custom-keybinding";
+
+    // Ensure our path is in the custom-keybindings list
+    if let Ok(output) = std::process::Command::new("gsettings")
+        .args(["get", "org.gnome.settings-daemon.plugins.media-keys", "custom-keybindings"])
+        .output()
+    {
+        let current = String::from_utf8_lossy(&output.stdout);
+        if !current.contains("lincy") {
+            let new_list = if current.trim() == "@as []" || current.trim().is_empty() {
+                format!("['{}']", base_path.trim_end_matches('/'))
+            } else {
+                format!("{}, '{}']", current.trim().trim_end_matches(']'), base_path.trim_end_matches('/'))
+            };
+            let _ = std::process::Command::new("gsettings")
+                .args(["set", "org.gnome.settings-daemon.plugins.media-keys", "custom-keybindings", &new_list])
+                .output();
+        }
+    }
+
+    // Detect installed binary path (check common locations)
+    let bin = ["/usr/bin/lincy", "/usr/local/bin/lincy"].iter()
+        .find(|p| std::path::Path::new(p).exists())
+        .map(|&s| s)
+        .unwrap_or("$HOME/.local/bin/lincy");
+
+    let schema_path = format!("{}:{}", schema_key, base_path);
+    for (key, val) in [("binding", binding), ("command", bin), ("name", "Lincy")] {
+        let _ = std::process::Command::new("gsettings")
+            .args(["set", &schema_path, key, val])
+            .output();
+    }
+    log::info!("Shortcut: {} → {}", binding, bin);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

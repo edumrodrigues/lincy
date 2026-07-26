@@ -57,46 +57,7 @@ fn to_human(mods: gtk4::gdk::ModifierType, keyval: Key) -> String {
     parts.join("+")
 }
 
-fn register_shortcut(binding: &str) {
-    let schema_path = "org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/lincy/";
-    let path = schema_path.trim_end_matches('/');
-
-    // Ensure custom keybinding list includes our path
-    let current = std::process::Command::new("gsettings")
-        .args(["get", "org.gnome.settings-daemon.plugins.media-keys", "custom-keybindings"])
-        .output()
-        .ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .unwrap_or_default();
-
-    if !current.contains("lincy") {
-        let new_list = if current.trim() == "@as []" || current.trim().is_empty() {
-            format!("['{}']", path)
-        } else {
-            current.trim().trim_end_matches(']').to_string() + &format!(", '{}']", path)
-        };
-        let _ = std::process::Command::new("gsettings")
-            .args(["set", "org.gnome.settings-daemon.plugins.media-keys", "custom-keybindings", &new_list])
-            .output();
-    }
-
-    // Detect binary path
-    let bin = if std::path::Path::new("/usr/bin/lincy").exists() {
-        "/usr/bin/lincy"
-    } else if std::path::Path::new("/usr/local/bin/lincy").exists() {
-        "/usr/local/bin/lincy"
-    } else {
-        "$HOME/.local/bin/lincy"
-    };
-
-    // Set binding, command, name
-    for (key, val) in [("binding", binding), ("command", bin), ("name", "Lincy")] {
-        let _ = std::process::Command::new("gsettings")
-            .args(["set", schema_path, key, val])
-            .output();
-    }
-    log::info!("Shortcut {} → {}", binding, bin);
-}
+// Shortcut registration moved to config::register_shortcut
 
 pub fn show_settings(parent: &Window, current: &Settings) -> SettingsResult {
     let dialog = gtk4::Window::builder()
@@ -201,7 +162,7 @@ pub fn show_settings(parent: &Window, current: &Settings) -> SettingsResult {
         let shortcut = sl.borrow().clone();
         let binding = sb.borrow().clone();
         if !binding.is_empty() {
-            register_shortcut(&binding);
+            crate::config::register_shortcut(&binding);
         }
         *r.borrow_mut() = SettingsResult::Save(Settings {
             thumb_size: thumb_spin.value() as i32,
