@@ -52,7 +52,7 @@ impl LincyTray {
 
 impl Tray for LincyTray {
     fn id(&self) -> String { "com.github.edumrodrigues.Lincy".into() }
-    fn icon_name(&self) -> String { "lincy".into() }
+    fn icon_name(&self) -> String { "lincy-symbolic".into() }
     fn title(&self) -> String { "Lincy".into() }
 
     fn activate(&mut self, _x: i32, _y: i32) {
