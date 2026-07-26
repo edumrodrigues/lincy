@@ -29,6 +29,10 @@ jobs:
           cp data/lincy.desktop $DEB/usr/share/applications/
           sed -i "s|LINCY_BIN|/usr/bin/lincy|" $DEB/usr/share/applications/lincy.desktop
 
+          # Autostart (system-wide)
+          mkdir -p $DEB/etc/xdg/autostart
+          cp $DEB/usr/share/applications/lincy.desktop $DEB/etc/xdg/autostart/
+
           cat > $DEB/DEBIAN/control << EOF
           Package: lincy
           Version: ${GITHUB_REF_NAME#v}

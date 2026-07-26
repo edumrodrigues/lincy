@@ -35,29 +35,42 @@ Simple, fast, keyboard-driven. Built with Rust and GTK4.
 
 ## Requirements
 
-- Ubuntu 24.04+ or any Linux distribution with GNOME ≥ 44
-- Wayland session (recommended) or X11/Xorg
+- Any Linux distribution with GTK4 runtime
+- Wayland or X11 session
 
-### System packages
+### Building from source
 
 ```bash
+# Debian/Ubuntu
 sudo apt install -y libgtk-4-dev libadwaita-1-dev libsqlite3-dev pkg-config
+
+# Fedora
+sudo dnf install -y gtk4-devel libadwaita-devel sqlite-devel pkg-config
+
+# Arch
+sudo pacman -S --noconfirm gtk4 libadwaita sqlite pkg-config
 ```
 
 - Rust stable: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
 
 ## Install
 
-### .deb package (Ubuntu/Debian)
+### One-line installer (recommended)
 
-Download the `.deb` from [releases](https://github.com/edumrodrigues/lincy/releases/latest) and:
+```bash
+curl -fsSL https://raw.githubusercontent.com/edumrodrigues/lincy/main/scripts/install-remote.sh | bash
+```
+
+Downloads the latest binary, installs everything, configures autostart. **No git clone needed.**
+
+### .deb package (Debian/Ubuntu)
+
+Download the `.deb` from [releases](https://github.com/edumrodrigues/lincy/releases/latest):
 
 ```bash
 sudo apt install ./lincy_*.deb
-lincy &
+# Starts automatically on next login, or run `lincy &` now
 ```
-
-### Pre-built binary (any distro)
 
 Download `lincy-linux-x86_64.tar.gz` from [releases](https://github.com/edumrodrigues/lincy/releases/latest):
 
@@ -108,12 +121,8 @@ lincy &
 
 ### Global Hotkey
 
-Lincy tries to register `Ctrl+Shift+C` automatically via the xdg-desktop-portal GlobalShortcuts API.
-
-If the portal is unavailable, set it up manually:
-1. GNOME Settings → Keyboard → View and Customize Shortcuts
-2. Scroll to Custom Shortcuts → Add
-3. Name: `Lincy`, Command: `lincy`, Shortcut: `Ctrl+Shift+C`
+Lincy registers `Ctrl+Shift+C` automatically on first run via your desktop's settings.
+You can change it anytime in **Settings** (tray menu → Settings).
 
 ## Architecture
 
