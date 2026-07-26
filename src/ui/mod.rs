@@ -50,6 +50,9 @@ impl PopupWindow {
             list row:selected { background-color:@theme_selected_bg_color; color:@theme_selected_fg_color; font-weight:bold; }
             list row:hover { background-color:alpha(@theme_selected_bg_color,0.3); }
             label.status { font-size:11px; opacity:0.7; padding:4px 10px; }
+            label.hint-key { font-size:12px; opacity:0.75; margin-left:3px; }
+            label.hint-desc { font-size:10px; opacity:0.65; }
+            label.hint-sep { font-size:10px; opacity:0.4; margin:0 2px; }
             label.item-label { font-size:13px; color:inherit; }
             label.img-label { font-size:11px; opacity:0.7; }
             picture.thumb { border-radius:4px; margin-right:4px; }
@@ -83,9 +86,29 @@ impl PopupWindow {
         status_label.add_css_class("status");
         status_label.set_halign(Align::Start); status_label.set_hexpand(true);
         footer.append(&status_label);
-        let hints = Label::new(Some("↩ Copy  |  ⎋ Close  |  ⌦ Delete  |  Ctrl+P Pin"));
-        hints.add_css_class("status"); hints.set_halign(Align::End);
-        footer.append(&hints);
+
+        let hints_box = GtkBox::new(Orientation::Horizontal, 2);
+        hints_box.set_halign(Align::End);
+        let pairs: [(&str, &str); 4] = [
+            ("↩", "Copy"),
+            ("⎋", "Close"),
+            ("⌦", "Delete"),
+            ("Ctrl+P", "Pin"),
+        ];
+        for (i, (key, desc)) in pairs.iter().enumerate() {
+            if i > 0 {
+                let sep = Label::new(Some("|"));
+                sep.add_css_class("hint-sep");
+                hints_box.append(&sep);
+            }
+            let kl = Label::new(Some(key));
+            kl.add_css_class("hint-key");
+            hints_box.append(&kl);
+            let dl = Label::new(Some(desc));
+            dl.add_css_class("hint-desc");
+            hints_box.append(&dl);
+        }
+        footer.append(&hints_box);
         vbox.append(&footer);
 
         // Search filtering
