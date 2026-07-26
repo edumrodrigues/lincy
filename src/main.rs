@@ -112,13 +112,11 @@ fn main() {
 
                 // Enforce max items
                 let max = settings_t.borrow().max_items;
-                if let Ok(count) = db_t.count() {
-                    if count > max {
-                        if let Ok(items) = db_t.list_recent(max + 100) {
-                            for item in items.iter().skip(max as usize) {
-                                if !item.pinned { let _ = db_t.delete_item(item.id); }
-                            }
-                        }
+                if let Ok(count) = db_t.count() && count > max
+                    && let Ok(items) = db_t.list_recent(max + 100)
+                {
+                    for item in items.iter().skip(max as usize) {
+                        if !item.pinned { let _ = db_t.delete_item(item.id); }
                     }
                 }
 

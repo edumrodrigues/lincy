@@ -47,29 +47,23 @@ impl ClipboardManager {
             let last_seen_hash = Arc::clone(&last_seen_hash);
             let mut c = mgr.inner.lock().expect("clipboard lock");
 
-            match c.get_text() {
-                Ok(text) if !text.is_empty() => {
-                    drop(c);
-                    let h = hash_bytes(text.as_bytes());
-                    if !skip(&h, &mgr.last_set_hash, &last_seen_hash) {
-                        log::info!("📋 Captured text: {} chars", text.len());
-                        let _ = db.insert_or_update(&text);
-                    }
-                    return gtk4::glib::ControlFlow::Continue;
+            if let Ok(text) = c.get_text() && !text.is_empty() {
+                drop(c);
+                let h = hash_bytes(text.as_bytes());
+                if !skip(&h, &mgr.last_set_hash, &last_seen_hash) {
+                    log::info!("📋 Captured text: {} chars", text.len());
+                    let _ = db.insert_or_update(&text);
                 }
-                _ => {}
+                return gtk4::glib::ControlFlow::Continue;
             }
 
-            match c.get_image() {
-                Ok(img) => {
-                    drop(c);
-                    let h = hash_bytes(&img.bytes);
-                    if !skip(&h, &mgr.last_set_hash, &last_seen_hash) {
-                        log::info!("🖼 Captured image: {}x{}", img.width, img.height);
-                        let _ = db.insert_image(&img.bytes, img.width as i32, img.height as i32);
-                    }
+            if let Ok(img) = c.get_image() {
+                drop(c);
+                let h = hash_bytes(&img.bytes);
+                if !skip(&h, &mgr.last_set_hash, &last_seen_hash) {
+                    log::info!("🖼 Captured image: {}x{}", img.width, img.height);
+                    let _ = db.insert_image(&img.bytes, img.width as i32, img.height as i32);
                 }
-                Err(_) => {}
             }
 
             gtk4::glib::ControlFlow::Continue
@@ -81,8 +75,11 @@ impl ClipboardManager {
 }
 
 fn skip(hash: &str, last_set: &Mutex<String>, last_seen: &Mutex<String>) -> bool {
-    if let Ok(our) = last_set.lock() { if *our == *hash { return true; } }
-    if let Ok(mut prev) = last_seen.lock() { if *prev == *hash { return true; } *prev = hash.to_string(); }
+    if let Ok(our) = last_set.lock() && *our == *hash { return true; }
+    if let Ok(mut prev) = last_seen.lock() {
+        if *prev == *hash { return true; }
+        *prev = hash.to_string();
+    }
     false
 }
 

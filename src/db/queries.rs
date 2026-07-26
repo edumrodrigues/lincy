@@ -40,7 +40,7 @@ const SELECT_COLS: &str = "id, content, content_hash, content_type, pinned, crea
 /// Inserts a text item (or updates usage if already present).
 pub fn insert_text(conn: &Connection, text: &str) -> Result<ClipboardItem, LincyError> {
     let hash = hash_content(text);
-    upsert(conn, text, "", &hash, "text", None, None, None)
+    upsert(conn, text, &hash, "text", None, None, None)
 }
 
 /// Inserts an image item (or updates usage if already present).
@@ -51,13 +51,13 @@ pub fn insert_image(
     height: i32,
 ) -> Result<ClipboardItem, LincyError> {
     let hash = hash_image(rgba);
-    upsert(conn, "", &hash, &hash, "image", Some(rgba), Some(width), Some(height))
+    upsert(conn, "", &hash, "image", Some(rgba), Some(width), Some(height))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn upsert(
     conn: &Connection,
     text: &str,
-    text_for_hash: &str,
     hash: &str,
     content_type: &str,
     image_data: Option<&[u8]>,

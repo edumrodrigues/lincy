@@ -190,11 +190,9 @@ pub fn show_settings(parent: &Window, current: &Settings) -> SettingsResult {
         let r = r3.clone();
         let d = d3.clone();
         confirm.choose(Some(&d3), gtk4::gio::Cancellable::NONE, move |res| {
-            if let Ok(choice) = res {
-                if choice == 1 {
-                    *r.borrow_mut() = SettingsResult::ClearHistory;
-                    d.close();
-                }
+            if let Ok(choice) = res && choice == 1 {
+                *r.borrow_mut() = SettingsResult::ClearHistory;
+                d.close();
             }
         });
     });

@@ -55,6 +55,4 @@ jobs:
       - uses: actions/checkout@v4
       - run: sudo apt update && sudo apt install -y libgtk-4-dev libadwaita-1-dev libsqlite3-dev pkg-config
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
       - run: cargo clippy -- -D warnings

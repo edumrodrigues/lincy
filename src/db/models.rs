@@ -1,5 +1,6 @@
 /// Represents a single item in the clipboard history.
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // fields kept for future use / DB integrity
 pub struct ClipboardItem {
     pub id: i64,
     pub content: String,

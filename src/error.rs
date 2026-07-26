@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
+#[allow(dead_code)] // variants kept for future use
 pub enum LincyError {
     #[error("Database error: {0}")]
     Database(#[from] rusqlite::Error),

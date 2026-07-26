@@ -181,8 +181,9 @@ impl PopupWindow {
             let mut last_count: i64 = -1;
             let id = glib::timeout_add_local(Duration::from_millis(800), move || {
                 if !l.is_visible() { return glib::ControlFlow::Continue; }
-                if let Ok(cur) = d.count() {
-                    if cur != last_count { last_count = cur; refresh_list(&l, &s, &d, &c, "", *ts_cell.borrow()); }
+                if let Ok(cur) = d.count() && cur != last_count {
+                    last_count = cur;
+                    refresh_list(&l, &s, &d, &c, "", *ts_cell.borrow());
                 }
                 glib::ControlFlow::Continue
             });
@@ -192,7 +193,6 @@ impl PopupWindow {
 
     pub fn hide(&self) { self.window.set_visible(false); }
     pub fn toggle(&self) { if self.window.is_visible() { self.hide(); } else { self.show(); } }
-    pub fn is_visible(&self) -> bool { self.window.is_visible() }
     pub fn window(&self) -> &Window { &self.window }
 }
 
@@ -269,7 +269,7 @@ fn refresh_list(
                     });
                     row.add_controller(click);
 
-                    if let Some(ref sel) = selected_text { if *sel == item.content { row_to_select = Some(row.clone()); } }
+                    if let Some(ref sel) = selected_text && *sel == item.content { row_to_select = Some(row.clone()); }
                     list_box.append(&row);
                 }
                 if let Some(r) = row_to_select { list_box.select_row(Some(&r)); }
@@ -285,7 +285,7 @@ fn build_text_row(hbox: &GtkBox, item: &ClipboardItem) {
     let trimmed = item.content.trim_start();
     let first = if trimmed.is_empty() { "(empty)" } else { trimmed.lines().next().unwrap_or(trimmed) };
     let display: String = if first.len() > 100 { format!("{}…", &first[..100]) } else { first.to_string() };
-    let display = display.replace('\n', " ").replace('\t', " ");
+    let display = display.replace(['\n', '\t'], " ");
     let prefix = if item.pinned { "📌 " } else { "" };
     let label = Label::new(Some(&format!("{}{}", prefix, display)));
     label.set_halign(Align::Start); label.set_ellipsize(gtk4::pango::EllipsizeMode::End);
@@ -296,18 +296,16 @@ fn build_text_row(hbox: &GtkBox, item: &ClipboardItem) {
 fn build_image_row(hbox: &GtkBox, item: &ClipboardItem, thumb_size: i32) {
     let prefix = if item.pinned { "📌 " } else { "" };
 
-    if let (Some(data), Some(w), Some(h)) = (&item.image_data, item.image_width, item.image_height) {
-        if w > 0 && h > 0 {
-            let bytes = glib::Bytes::from(data.as_slice());
-            let texture = gdk4::MemoryTexture::new(
-                w, h, gdk4::MemoryFormat::R8g8b8a8, &bytes, (w * 4) as usize,
-            );
-            let pic = Picture::for_paintable(&texture);
-            pic.set_can_shrink(true);
-            pic.set_size_request(thumb_size, thumb_size);
-            pic.add_css_class("thumb");
-            hbox.append(&pic);
-        }
+    if let (Some(data), Some(w), Some(h)) = (&item.image_data, item.image_width, item.image_height) && w > 0 && h > 0 {
+        let bytes = glib::Bytes::from(data.as_slice());
+        let texture = gdk4::MemoryTexture::new(
+            w, h, gdk4::MemoryFormat::R8g8b8a8, &bytes, (w * 4) as usize,
+        );
+        let pic = Picture::for_paintable(&texture);
+        pic.set_can_shrink(true);
+        pic.set_size_request(thumb_size, thumb_size);
+        pic.add_css_class("thumb");
+        hbox.append(&pic);
     }
 
     let label = Label::new(Some(&format!(
@@ -338,18 +336,15 @@ fn copy_selected(list_box: &ListBox, clipboard: &ClipboardManager, status: &Labe
     if let Some(row) = list_box.selected_row() {
         unsafe {
             let item_type = row.data::<String>(ITEM_TYPE_KEY).map(|p| p.as_ref().clone());
-            if let Some(t) = item_type {
-                if t == "image" {
-                    if let (Some(d), Some(w), Some(h)) = (
-                        row.data::<Vec<u8>>(IMG_DATA_KEY).map(|p| p.as_ref().clone()),
-                        row.data::<i32>(IMG_WIDTH_KEY).map(|p| *p.as_ref()),
-                        row.data::<i32>(IMG_HEIGHT_KEY).map(|p| *p.as_ref()),
-                    ) {
-                        clipboard.set_image(&d, w, h);
-                        status.set_text(&format!("Copied image: {}×{}", w, h));
-                        return;
-                    }
-                }
+            if let Some(t) = item_type && t == "image"
+                && let (Some(d), Some(w), Some(h)) = (
+                    row.data::<Vec<u8>>(IMG_DATA_KEY).map(|p| p.as_ref().clone()),
+                    row.data::<i32>(IMG_WIDTH_KEY).map(|p| *p.as_ref()),
+                    row.data::<i32>(IMG_HEIGHT_KEY).map(|p| *p.as_ref()),
+                ) {
+                clipboard.set_image(&d, w, h);
+                status.set_text(&format!("Copied image: {}×{}", w, h));
+                return;
             }
             if let Some(p) = row.data::<String>(FULL_TEXT_KEY) {
                 let text = p.as_ref();
