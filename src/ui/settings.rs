@@ -37,7 +37,7 @@ pub fn show_settings(parent: &Window, current: &Settings) -> SettingsResult {
     grid.attach(&thumb_spin, 1, 0, 1, 1);
 
     grid.attach(&Label::new(Some("Max items:")), 0, 1, 1, 1);
-    let max_spin = SpinButton::with_range(50.0, 10000.0, 50.0);
+    let max_spin = SpinButton::with_range(5.0, 10000.0, 10.0);
     max_spin.set_value(current.max_items as f64);
     grid.attach(&max_spin, 1, 1, 1, 1);
 

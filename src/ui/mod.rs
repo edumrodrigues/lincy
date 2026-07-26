@@ -1,6 +1,7 @@
 pub mod settings;
 
 use std::cell::RefCell;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -25,12 +26,12 @@ pub struct PopupWindow {
     status_label: Label,
     db: Arc<Database>,
     clip: Arc<ClipboardManager>,
-    thumb_size: i32,
+    thumb_size: Rc<RefCell<i32>>,
     refresh_timer: RefCell<Option<glib::SourceId>>,
 }
 
 impl PopupWindow {
-    pub fn new(app: &gtk4::Application, db: Arc<Database>, clip: Arc<ClipboardManager>, thumb_size: i32) -> Self {
+    pub fn new(app: &gtk4::Application, db: Arc<Database>, clip: Arc<ClipboardManager>, thumb_size: Rc<RefCell<i32>>) -> Self {
         let window = Window::builder()
             .application(app).title("Lincy")
             .default_width(460).default_height(400)
@@ -138,20 +139,23 @@ impl PopupWindow {
     }
 
     pub fn show(&self) {
-        let ts = self.thumb_size;
+        let ts = *self.thumb_size.borrow();
         self.search_entry.set_text("");
         self.window.present();
+        // Reset to first item (clear stale selection from previous session)
+        self.list_box.unselect_all();
         self.search_entry.grab_focus();
         refresh_list(&self.list_box, &self.status_label, &self.db, &self.clip, "", ts);
 
         if self.refresh_timer.borrow().is_none() {
             let l = self.list_box.clone(); let s = self.status_label.clone();
             let d = self.db.clone(); let c = self.clip.clone();
+            let ts_cell = self.thumb_size.clone();
             let mut last_count: i64 = -1;
             let id = glib::timeout_add_local(Duration::from_millis(800), move || {
                 if !l.is_visible() { return glib::ControlFlow::Continue; }
                 if let Ok(cur) = d.count() {
-                    if cur != last_count { last_count = cur; refresh_list(&l, &s, &d, &c, "", ts); }
+                    if cur != last_count { last_count = cur; refresh_list(&l, &s, &d, &c, "", *ts_cell.borrow()); }
                 }
                 glib::ControlFlow::Continue
             });

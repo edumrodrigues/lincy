@@ -30,7 +30,7 @@ pub struct Settings {
 }
 
 fn default_thumb_size() -> i32 { 24 }
-fn default_max_items() -> i64 { 500 }
+fn default_max_items() -> i64 { 100 }
 fn default_shortcut() -> String { "Ctrl+Shift+C".into() }
 
 impl Default for Settings {

@@ -58,7 +58,9 @@ fn main() {
                 Err(e) => { log::error!("Clipboard: {}", e); return; }
             };
 
-            let popup = Rc::new(ui::PopupWindow::new(app, db.clone(), clip.clone(), settings.borrow().thumb_size));
+            // Shared thumb_size so settings changes apply immediately
+            let thumb_size = Rc::new(RefCell::new(settings.borrow().thumb_size));
+            let popup = Rc::new(ui::PopupWindow::new(app, db.clone(), clip.clone(), thumb_size.clone()));
             *popup_holder.borrow_mut() = Some(popup.clone());
             *poll_guard_holder.borrow_mut() = Some(clip.start_monitoring(db.clone(), 500));
 
@@ -134,6 +136,7 @@ fn main() {
                                 let cur = settings_t.borrow().clone();
                                 match ui::settings::show_settings(p.window(), &cur) {
                                     ui::settings::SettingsResult::Save(s) => {
+                                        *thumb_size.borrow_mut() = s.thumb_size;
                                         *settings_t.borrow_mut() = s.clone();
                                         s.save();
                                     }
