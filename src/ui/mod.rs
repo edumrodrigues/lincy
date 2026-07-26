@@ -197,9 +197,18 @@ impl PopupWindow {
             window_act.set_visible(false);
         });
 
+        // X button → hide, don't destroy
         window.connect_close_request(|window| {
             window.set_visible(false);
             Propagation::Stop
+        });
+
+        // Click outside → lose focus → hide (no clipboard change)
+        let window_focus = window.clone();
+        window.connect_is_active_notify(move |w| {
+            if !w.is_active() {
+                w.set_visible(false);
+            }
         });
 
         PopupWindow {
@@ -318,14 +327,23 @@ fn refresh_list(
 
                     let hbox = GtkBox::new(Orientation::Horizontal, 6);
 
-                    let first_line = item.content.lines().next().unwrap_or(&item.content);
+                    // Find first meaningful line for display
+                    let trimmed = item.content.trim_start();
+                    let first_line = if trimmed.is_empty() {
+                        "(empty)"
+                    } else {
+                        trimmed.lines().next().unwrap_or(trimmed)
+                    };
                     let display = if first_line.len() > 100 {
                         format!("{}…", &first_line[..100])
                     } else {
                         first_line.to_string()
                     };
+                    // Collapse newlines/tabs into single space for clean display
+                    let display = display
+                        .replace('\n', " ")
+                        .replace('\t', " ");
 
-                    // Indicator: pin icon for pinned items
                     let prefix = if item.pinned { "📌 " } else { "" };
                     let label = Label::new(Some(&format!("{}{}", prefix, display)));
                     label.set_halign(Align::Start);
