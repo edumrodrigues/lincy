@@ -50,8 +50,8 @@ impl PopupWindow {
             list row:selected { background-color:@theme_selected_bg_color; color:@theme_selected_fg_color; font-weight:bold; }
             list row:hover { background-color:alpha(@theme_selected_bg_color,0.3); }
             label.status { font-size:11px; opacity:0.7; padding:4px 10px; }
-            label.hint-key { font-size:11px; opacity:0.75; }
-            label.hint-desc { font-size:10px; opacity:0.6; }
+            label.hint-key { font-size:11px; opacity:0.55; }
+            label.hint-desc { font-size:10px; opacity:0.55; }
             label.hint-sep { font-size:10px; opacity:0.35; margin:0 1px; }
             label.item-label { font-size:13px; color:inherit; }
             label.img-label { font-size:11px; opacity:0.7; }
