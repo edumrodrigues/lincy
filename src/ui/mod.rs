@@ -100,7 +100,10 @@ impl PopupWindow {
         let wk = window.clone(); let lk = list_box.clone();
         let ck = clip.clone(); let dk = db.clone();
         let stk = status_label.clone();
+        let ck2 = clip.clone();
+        let ts_kc = thumb_size.clone();
         kc.connect_key_pressed(move |_, kv, _, mods| {
+            let ts = *ts_kc.borrow();
             match kv {
                 Key::Escape => { wk.set_visible(false); return Propagation::Stop; }
                 Key::Return | Key::KP_Enter => {
@@ -109,11 +112,11 @@ impl PopupWindow {
                     return Propagation::Stop;
                 }
                 Key::Delete | Key::KP_Delete => {
-                    delete_selected(&lk, &dk, &stk);
+                    delete_selected(&lk, &dk, &stk, &ck2, ts);
                     return Propagation::Stop;
                 }
                 Key::p | Key::P if mods.contains(gtk4::gdk::ModifierType::CONTROL_MASK) => {
-                    toggle_pin_selected(&lk, &dk, &stk);
+                    toggle_pin_selected(&lk, &dk, &stk, &ck2, ts);
                     return Propagation::Stop;
                 }
                 _ => {}
@@ -194,7 +197,9 @@ fn refresh_list(
                 list_box.append(&row);
             } else {
                 let mut row_to_select: Option<ListBoxRow> = None;
-                for (index, item) in items.iter().enumerate() {
+                let mut current_marked = false;
+
+                for item in &items {
                     let row = ListBoxRow::new();
                     let hbox = GtkBox::new(Orientation::Horizontal, 8);
                     hbox.set_margin_top(2); hbox.set_margin_bottom(2);
@@ -206,7 +211,11 @@ fn refresh_list(
                     }
 
                     row.set_child(Some(&hbox));
-                    if index == 0 { row.add_css_class("current-clipboard"); }
+                    // Mark first non-pinned as current clipboard (pinned sort first)
+                    if !item.pinned && !current_marked {
+                        row.add_css_class("current-clipboard");
+                        current_marked = true;
+                    }
 
                     // Store item data on row
                     unsafe {
@@ -288,7 +297,7 @@ fn build_image_row(hbox: &GtkBox, item: &ClipboardItem, thumb_size: i32) {
 
 // ── Actions ───────────────────────────────────────────────────────────────
 
-fn copy_item(clip: &ClipboardManager, db: &Database, item: &ClipboardItem) {
+fn copy_item(clip: &ClipboardManager, db: &Arc<Database>, item: &ClipboardItem) {
     if item.content_type == "image" {
         if let (Some(data), Some(w), Some(h)) = (&item.image_data, item.image_width, item.image_height) {
             clip.set_image(data, w, h);
@@ -301,7 +310,7 @@ fn copy_item(clip: &ClipboardManager, db: &Database, item: &ClipboardItem) {
     }
 }
 
-fn copy_selected(list_box: &ListBox, clipboard: &ClipboardManager, status: &Label, db: &Database) {
+fn copy_selected(list_box: &ListBox, clipboard: &ClipboardManager, status: &Label, db: &Arc<Database>) {
     if let Some(row) = list_box.selected_row() {
         unsafe {
             let item_type = row.data::<String>(ITEM_TYPE_KEY).map(|p| p.as_ref().clone());
@@ -328,7 +337,10 @@ fn copy_selected(list_box: &ListBox, clipboard: &ClipboardManager, status: &Labe
     }
 }
 
-fn delete_selected(list_box: &ListBox, db: &Database, status: &Label) {
+fn delete_selected(
+    list_box: &ListBox, db: &Arc<Database>, status: &Label,
+    clip: &Arc<ClipboardManager>, thumb_size: i32,
+) {
     let text = list_box.selected_row().and_then(|r| unsafe {
         r.data::<String>(FULL_TEXT_KEY).map(|p| p.as_ref().clone())
     });
@@ -336,10 +348,14 @@ fn delete_selected(list_box: &ListBox, db: &Database, status: &Label) {
         if let Ok(items) = db.list_recent(1000) {
             for item in &items { if item.content == t { let _ = db.delete_item(item.id); status.set_text("Deleted"); break; } }
         }
+        refresh_list(list_box, status, db, clip, "", thumb_size);
     }
 }
 
-fn toggle_pin_selected(list_box: &ListBox, db: &Database, status: &Label) {
+fn toggle_pin_selected(
+    list_box: &ListBox, db: &Arc<Database>, status: &Label,
+    clip: &Arc<ClipboardManager>, thumb_size: i32,
+) {
     let text = list_box.selected_row().and_then(|r| unsafe {
         r.data::<String>(FULL_TEXT_KEY).map(|p| p.as_ref().clone())
     });
@@ -349,5 +365,6 @@ fn toggle_pin_selected(list_box: &ListBox, db: &Database, status: &Label) {
                 if item.content == t { let _ = db.toggle_pin(item.id); status.set_text(if item.pinned {"Unpinned"} else {"Pinned"}); break; }
             }
         }
+        refresh_list(list_box, status, db, clip, "", thumb_size);
     }
 }
