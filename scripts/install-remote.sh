@@ -65,7 +65,7 @@ for px in 24 32 48; do
     mkdir -p "$HOME/.local/share/icons/hicolor/${px}x${px}/apps"
     cp /tmp/lincy/icons/hicolor/scalable/apps/lincy.svg "$HOME/.local/share/icons/hicolor/${px}x${px}/apps/lincy.svg" 2>/dev/null || true
 done
-gtk-update-icon-cache -f "$HOME/.local/share/icons/hicolor/" 2>/dev/null || true
+gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor/" 2>/dev/null || true
 
 # Desktop entry + autostart (tarball has lincy.desktop at root)
 mkdir -p "$HOME/.local/share/applications" "$HOME/.config/autostart"
