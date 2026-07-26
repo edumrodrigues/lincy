@@ -57,19 +57,19 @@ tar xf /tmp/lincy.tar.gz -C /tmp/
 cp /tmp/lincy/lincy "$INSTALL_PATH"
 chmod 755 "$INSTALL_PATH"
 
-# Install icons
+# Install icons (tarball has icons/ not data/icons/)
 mkdir -p "$HOME/.local/share/icons/hicolor/scalable/apps" "$HOME/.local/share/icons/hicolor/symbolic/apps"
-cp /tmp/lincy/data/icons/hicolor/scalable/apps/lincy.svg "$HOME/.local/share/icons/hicolor/scalable/apps/" 2>/dev/null || true
-cp /tmp/lincy/data/icons/hicolor/symbolic/apps/lincy-symbolic.svg "$HOME/.local/share/icons/hicolor/symbolic/apps/" 2>/dev/null || true
+cp /tmp/lincy/icons/hicolor/scalable/apps/lincy.svg "$HOME/.local/share/icons/hicolor/scalable/apps/" 2>/dev/null || true
+cp /tmp/lincy/icons/hicolor/symbolic/apps/lincy-symbolic.svg "$HOME/.local/share/icons/hicolor/symbolic/apps/" 2>/dev/null || true
 for px in 24 32 48; do
     mkdir -p "$HOME/.local/share/icons/hicolor/${px}x${px}/apps"
-    cp /tmp/lincy/data/icons/hicolor/scalable/apps/lincy.svg "$HOME/.local/share/icons/hicolor/${px}x${px}/apps/lincy.svg" 2>/dev/null || true
+    cp /tmp/lincy/icons/hicolor/scalable/apps/lincy.svg "$HOME/.local/share/icons/hicolor/${px}x${px}/apps/lincy.svg" 2>/dev/null || true
 done
 gtk-update-icon-cache -f "$HOME/.local/share/icons/hicolor/" 2>/dev/null || true
 
-# Desktop entry + autostart
+# Desktop entry + autostart (tarball has lincy.desktop at root)
 mkdir -p "$HOME/.local/share/applications" "$HOME/.config/autostart"
-sed "s|LINCY_BIN|$INSTALL_PATH|" /tmp/lincy/data/lincy.desktop > "$HOME/.local/share/applications/lincy.desktop"
+sed "s|LINCY_BIN|$INSTALL_PATH|" /tmp/lincy/lincy.desktop > "$HOME/.local/share/applications/lincy.desktop"
 cp "$HOME/.local/share/applications/lincy.desktop" "$HOME/.config/autostart/lincy.desktop"
 update-desktop-database "$HOME/.local/share/applications/" 2>/dev/null || true
 
