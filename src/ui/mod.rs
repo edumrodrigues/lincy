@@ -50,9 +50,9 @@ impl PopupWindow {
             list row:selected { background-color:@theme_selected_bg_color; color:@theme_selected_fg_color; font-weight:bold; }
             list row:hover { background-color:alpha(@theme_selected_bg_color,0.3); }
             label.status { font-size:11px; opacity:0.7; padding:4px 10px; }
-            label.hint-key { font-size:12px; opacity:0.75; margin-left:3px; }
-            label.hint-desc { font-size:10px; opacity:0.65; }
-            label.hint-sep { font-size:10px; opacity:0.4; margin:0 2px; }
+            label.hint-key { font-size:11px; opacity:0.75; }
+            label.hint-desc { font-size:10px; opacity:0.6; }
+            label.hint-sep { font-size:10px; opacity:0.35; margin:0 1px; }
             label.item-label { font-size:13px; color:inherit; }
             label.img-label { font-size:11px; opacity:0.7; }
             picture.thumb { border-radius:4px; margin-right:4px; }
@@ -89,10 +89,11 @@ impl PopupWindow {
 
         let hints_box = GtkBox::new(Orientation::Horizontal, 2);
         hints_box.set_halign(Align::End);
+        hints_box.set_margin_end(8);
         let pairs: [(&str, &str); 4] = [
             ("↩", "Copy"),
             ("⎋", "Close"),
-            ("⌦", "Delete"),
+            ("Del", "Delete"),
             ("Ctrl+P", "Pin"),
         ];
         for (i, (key, desc)) in pairs.iter().enumerate() {
