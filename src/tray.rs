@@ -1,184 +1,130 @@
-use std::sync::mpsc;
+use std::sync::{Arc, Mutex, mpsc};
 
+use ksni::blocking::{Handle, TrayMethods};
 use ksni::menu::{MenuItem, StandardItem};
-use ksni::{Icon, ToolTip, Tray, TrayMethods};
+use ksni::{ToolTip, Tray};
 
-/// Actions that can be triggered from the tray menu or activation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum TrayAction {
     Show,
-    ClearHistory,
     Quit,
+    Settings,
+    CopyText(String),
+    CopyImage { rgba: Vec<u8>, width: i32, height: i32 },
 }
 
-/// The StatusNotifierItem tray implementation. Communicates with the GTK main
-/// thread via an mpsc channel.
+#[derive(Debug, Clone)]
+pub struct TrayEntry {
+    pub content: String,
+    pub content_type: String,
+    pub pinned: bool,
+    pub image_data: Option<Vec<u8>>,
+    pub image_width: Option<i32>,
+    pub image_height: Option<i32>,
+}
+
 pub struct LincyTray {
     sender: mpsc::Sender<TrayAction>,
+    entries: Arc<Mutex<Vec<TrayEntry>>>,
+    max_menu: usize,
 }
 
 impl LincyTray {
-    /// Creates a new tray instance and returns it along with the receiver end
-    /// for polling in the GTK main loop.
-    pub fn new() -> (Self, mpsc::Receiver<TrayAction>) {
+    pub fn new() -> (Self, mpsc::Receiver<TrayAction>, Arc<Mutex<Vec<TrayEntry>>>) {
         let (tx, rx) = mpsc::channel();
-        (Self { sender: tx }, rx)
+        let entries = Arc::new(Mutex::new(Vec::new()));
+        (Self { sender: tx, entries: entries.clone(), max_menu: 15 }, rx, entries)
     }
 
-    /// Spawns the tray service on the provided tokio runtime. This registers
-    /// the StatusNotifierItem on D-Bus and keeps running until the runtime
-    /// is dropped.
-    pub fn spawn_on_runtime(self, rt: &tokio::runtime::Runtime) {
-        rt.spawn(async move {
-            if let Err(e) = self.spawn().await {
-                log::error!("Failed to spawn tray service: {}", e);
-            }
+    /// Spawn the tray service synchronously (blocking API).
+    pub fn spawn_blocking(self) -> Handle<Self> {
+        self.spawn().expect("Failed to spawn tray service")
+    }
+
+    /// Trigger a menu refresh. Safe to call from GTK main loop.
+    pub fn update_menu(handle: &Handle<Self>, new_entries: Vec<TrayEntry>, max_menu: usize) {
+        handle.update(|tray| {
+            *tray.entries.lock().unwrap() = new_entries;
+            tray.max_menu = max_menu;
         });
     }
 }
 
 impl Tray for LincyTray {
-    fn id(&self) -> String {
-        "com.github.edumrodrigues.Lincy".into()
-    }
+    fn id(&self) -> String { "com.github.edumrodrigues.Lincy".into() }
+    fn icon_name(&self) -> String { "lincy".into() }
+    fn title(&self) -> String { "Lincy".into() }
 
-    fn icon_name(&self) -> String {
-        // Use our installed icon; falls back to default if not found
-        "lincy".into()
-    }
-
-    fn title(&self) -> String {
-        "Lincy".into()
-    }
-
-    /// Left-click on the tray icon → show the popup.
     fn activate(&mut self, _x: i32, _y: i32) {
         let _ = self.sender.send(TrayAction::Show);
     }
 
-    /// Right-click or middle-click → also show the popup.
-    fn secondary_activate(&mut self, _x: i32, _y: i32) {
-        let _ = self.sender.send(TrayAction::Show);
-    }
-
     fn tool_tip(&self) -> ToolTip {
-        ToolTip {
-            title: "Lincy".into(),
-            description: "Clipboard Manager".into(),
-            icon_name: "lincy".into(),
-            icon_pixmap: vec![],
-        }
+        ToolTip { title: "Lincy".into(), description: "Clipboard Manager".into(), icon_name: "lincy".into(), icon_pixmap: vec![] }
     }
 
     fn menu(&self) -> Vec<MenuItem<Self>> {
-        let show_tx = self.sender.clone();
-        let clear_tx = self.sender.clone();
-        let quit_tx = self.sender.clone();
+        let mut items: Vec<MenuItem<Self>> = Vec::new();
+        let entries = self.entries.lock().unwrap();
 
-        vec![
-            MenuItem::Standard(StandardItem {
-                label: "Show Lincy".into(),
-                enabled: true,
-                visible: true,
-                icon_name: String::new(),
-                icon_data: vec![],
-                shortcut: vec![],
-                disposition: ksni::menu::Disposition::Normal,
-                activate: Box::new(move |_tray: &mut Self| {
-                    let _ = show_tx.send(TrayAction::Show);
-                }),
-            }),
-            MenuItem::Standard(StandardItem {
-                label: "Clear History".into(),
-                enabled: true,
-                visible: true,
-                icon_name: "edit-clear-all-symbolic".into(),
-                icon_data: vec![],
-                shortcut: vec![],
-                disposition: ksni::menu::Disposition::Normal,
-                activate: Box::new(move |_tray: &mut Self| {
-                    let _ = clear_tx.send(TrayAction::ClearHistory);
-                }),
-            }),
-            MenuItem::Separator,
-            MenuItem::Standard(StandardItem {
-                label: "Quit".into(),
-                enabled: true,
-                visible: true,
-                icon_name: "application-exit-symbolic".into(),
-                icon_data: vec![],
-                shortcut: vec![],
-                disposition: ksni::menu::Disposition::Normal,
-                activate: Box::new(move |_tray: &mut Self| {
-                    let _ = quit_tx.send(TrayAction::Quit);
-                }),
-            }),
-        ]
-    }
-
-    fn icon_pixmap(&self) -> Vec<ksni::Icon> {
-        // Provide a fallback pixmap in case the named icon isn't found
-        vec![make_icon_pixmap()]
-    }
-
-    fn category(&self) -> ksni::Category {
-        ksni::Category::ApplicationStatus
-    }
-
-    fn status(&self) -> ksni::Status {
-        ksni::Status::Active
-    }
-}
-
-/// Creates a simple clipboard icon as 24×24 RGBA pixels for the fallback pixmap.
-fn make_icon_pixmap() -> Icon {
-    let width: i32 = 24;
-    let height: i32 = 24;
-    let mut pixels = vec![0u8; (width * height * 4) as usize];
-
-    for y in 0..height {
-        for x in 0..width {
-            let i = ((y * width + x) * 4) as usize;
-
-            let board = x >= 2 && x < 22 && y >= 5 && y < 23;
-            let clip = x >= 8 && x < 16 && y >= 1 && y < 6;
-            let outline =
-                (x == 2 || x == 21) && y >= 5 && y < 23 || (y == 5 || y == 22) && x >= 2 && x < 22;
-            let clip_outline =
-                (x == 8 || x == 15) && y >= 1 && y < 6 || (y == 1 || y == 5) && x >= 8 && x < 16;
-
-            // Text lines
-            let line1 = y == 9 && x >= 5 && x < 19;
-            let line2 = y == 13 && x >= 5 && x < 16;
-            let line3 = y == 17 && x >= 5 && x < 18;
-
-            if outline || clip_outline {
-                pixels[i] = 180;
-                pixels[i + 1] = 180;
-                pixels[i + 2] = 180;
-                pixels[i + 3] = 255;
-            } else if clip {
-                pixels[i] = 80;
-                pixels[i + 1] = 80;
-                pixels[i + 2] = 80;
-                pixels[i + 3] = 255;
-            } else if board {
-                pixels[i] = 50;
-                pixels[i + 1] = 50;
-                pixels[i + 2] = 50;
-                pixels[i + 3] = 255;
-            } else if line1 || line2 || line3 {
-                pixels[i] = 255;
-                pixels[i + 1] = 255;
-                pixels[i + 2] = 255;
-                pixels[i + 3] = 255;
+        for entry in entries.iter().take(self.max_menu) {
+            if entry.content_type == "image" {
+                let w = entry.image_width.unwrap_or(0);
+                let h = entry.image_height.unwrap_or(0);
+                let prefix = if entry.pinned { "📌 " } else { "" };
+                let label = format!("{}🖼 Image ({}×{})", prefix, w, h);
+                let img_data = entry.image_data.clone();
+                let img_w = entry.image_width;
+                let img_h = entry.image_height;
+                let tx = self.sender.clone();
+                items.push(MenuItem::Standard(StandardItem {
+                    label, enabled: true, visible: true,
+                    icon_name: String::new(), icon_data: vec![], shortcut: vec![],
+                    disposition: ksni::menu::Disposition::Normal,
+                    activate: Box::new(move |_| {
+                        if let (Some(d), Some(w), Some(h)) = (&img_data, img_w, img_h) {
+                            let _ = tx.send(TrayAction::CopyImage { rgba: d.clone(), width: w, height: h });
+                        }
+                    }),
+                }));
+            } else {
+                let trimmed = entry.content.trim_start();
+                let first = if trimmed.is_empty() { "(empty)" } else { trimmed.lines().next().unwrap_or(trimmed) };
+                let display = if first.len() > 50 { format!("{}…", &first[..50]) } else { first.to_string() };
+                let prefix = if entry.pinned { "📌 " } else { "" };
+                let label = format!("{}{}", prefix, display);
+                let text = entry.content.clone();
+                let tx = self.sender.clone();
+                items.push(MenuItem::Standard(StandardItem {
+                    label, enabled: true, visible: true,
+                    icon_name: String::new(), icon_data: vec![], shortcut: vec![],
+                    disposition: ksni::menu::Disposition::Normal,
+                    activate: Box::new(move |_| { let _ = tx.send(TrayAction::CopyText(text.clone())); }),
+                }));
             }
         }
+
+        if !items.is_empty() { items.push(MenuItem::Separator); }
+
+        let settings_tx = self.sender.clone();
+        items.push(MenuItem::Standard(StandardItem {
+            label: "⚙ Settings…".into(), enabled: true, visible: true,
+            icon_name: "emblem-system-symbolic".into(), icon_data: vec![], shortcut: vec![],
+            disposition: ksni::menu::Disposition::Normal,
+            activate: Box::new(move |_| { let _ = settings_tx.send(TrayAction::Settings); }),
+        }));
+
+        let quit_tx = self.sender.clone();
+        items.push(MenuItem::Standard(StandardItem {
+            label: "Quit".into(), enabled: true, visible: true,
+            icon_name: "application-exit-symbolic".into(), icon_data: vec![], shortcut: vec![],
+            disposition: ksni::menu::Disposition::Normal,
+            activate: Box::new(move |_| { let _ = quit_tx.send(TrayAction::Quit); }),
+        }));
+
+        items
     }
 
-    Icon {
-        width,
-        height,
-        data: pixels,
-    }
+    fn category(&self) -> ksni::Category { ksni::Category::ApplicationStatus }
+    fn status(&self) -> ksni::Status { ksni::Status::Active }
 }

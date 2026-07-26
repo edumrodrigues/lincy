@@ -1,5 +1,6 @@
+pub mod settings;
+
 use std::cell::RefCell;
-use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -17,8 +18,6 @@ const IMG_DATA_KEY: &str = "lincy-img-data";
 const IMG_WIDTH_KEY: &str = "lincy-img-width";
 const IMG_HEIGHT_KEY: &str = "lincy-img-height";
 
-const THUMB_SIZE: i32 = 22;
-
 pub struct PopupWindow {
     window: Window,
     search_entry: Entry,
@@ -26,11 +25,12 @@ pub struct PopupWindow {
     status_label: Label,
     db: Arc<Database>,
     clip: Arc<ClipboardManager>,
+    thumb_size: i32,
     refresh_timer: RefCell<Option<glib::SourceId>>,
 }
 
 impl PopupWindow {
-    pub fn new(app: &gtk4::Application, db: Arc<Database>, clip: Arc<ClipboardManager>) -> Self {
+    pub fn new(app: &gtk4::Application, db: Arc<Database>, clip: Arc<ClipboardManager>, thumb_size: i32) -> Self {
         let window = Window::builder()
             .application(app).title("Lincy")
             .default_width(460).default_height(400)
@@ -91,14 +91,14 @@ impl PopupWindow {
         let lbs = list_box.clone(); let ss = status_label.clone();
         let dbs = db.clone(); let cs = clip.clone();
         search_entry.connect_changed(move |e| {
-            refresh_list(&lbs, &ss, &dbs, &cs, &e.text());
+            refresh_list(&lbs, &ss, &dbs, &cs, &e.text(), 22);
         });
 
         // Keyboard shortcuts
         let kc = gtk4::EventControllerKey::new();
         let wk = window.clone(); let lk = list_box.clone();
         let ck = clip.clone(); let dk = db.clone();
-        let sk = search_entry.clone(); let stk = status_label.clone();
+        let stk = status_label.clone();
         kc.connect_key_pressed(move |_, kv, _, mods| {
             match kv {
                 Key::Escape => { wk.set_visible(false); return Propagation::Stop; }
@@ -134,14 +134,15 @@ impl PopupWindow {
         window.connect_close_request(|w| { w.set_visible(false); Propagation::Stop });
         window.connect_is_active_notify(|w| { if !w.is_active() { w.set_visible(false); } });
 
-        PopupWindow { window, search_entry, list_box, status_label, db, clip, refresh_timer: RefCell::new(None) }
+        PopupWindow { window, search_entry, list_box, status_label, db, clip, thumb_size, refresh_timer: RefCell::new(None) }
     }
 
     pub fn show(&self) {
+        let ts = self.thumb_size;
         self.search_entry.set_text("");
         self.window.present();
         self.search_entry.grab_focus();
-        refresh_list(&self.list_box, &self.status_label, &self.db, &self.clip, "");
+        refresh_list(&self.list_box, &self.status_label, &self.db, &self.clip, "", ts);
 
         if self.refresh_timer.borrow().is_none() {
             let l = self.list_box.clone(); let s = self.status_label.clone();
@@ -150,7 +151,7 @@ impl PopupWindow {
             let id = glib::timeout_add_local(Duration::from_millis(800), move || {
                 if !l.is_visible() { return glib::ControlFlow::Continue; }
                 if let Ok(cur) = d.count() {
-                    if cur != last_count { last_count = cur; refresh_list(&l, &s, &d, &c, ""); }
+                    if cur != last_count { last_count = cur; refresh_list(&l, &s, &d, &c, "", ts); }
                 }
                 glib::ControlFlow::Continue
             });
@@ -161,6 +162,7 @@ impl PopupWindow {
     pub fn hide(&self) { self.window.set_visible(false); }
     pub fn toggle(&self) { if self.window.is_visible() { self.hide(); } else { self.show(); } }
     pub fn is_visible(&self) -> bool { self.window.is_visible() }
+    pub fn window(&self) -> &Window { &self.window }
 }
 
 // ── refresh_list ──────────────────────────────────────────────────────────
@@ -168,6 +170,7 @@ impl PopupWindow {
 fn refresh_list(
     list_box: &ListBox, status_label: &Label,
     db: &Arc<Database>, clip: &Arc<ClipboardManager>, query: &str,
+    thumb_size: i32,
 ) {
     let result = if query.is_empty() { db.list_recent(100) } else { db.search(query, 100) };
 
@@ -193,7 +196,7 @@ fn refresh_list(
                     hbox.set_margin_top(2); hbox.set_margin_bottom(2);
 
                     if item.content_type == "image" {
-                        build_image_row(&hbox, item);
+                        build_image_row(&hbox, item, thumb_size);
                     } else {
                         build_text_row(&hbox, item);
                     }
@@ -253,7 +256,7 @@ fn build_text_row(hbox: &GtkBox, item: &ClipboardItem) {
     hbox.append(&label);
 }
 
-fn build_image_row(hbox: &GtkBox, item: &ClipboardItem) {
+fn build_image_row(hbox: &GtkBox, item: &ClipboardItem, thumb_size: i32) {
     let prefix = if item.pinned { "📌 " } else { "" };
 
     if let (Some(data), Some(w), Some(h)) = (&item.image_data, item.image_width, item.image_height) {
@@ -264,7 +267,7 @@ fn build_image_row(hbox: &GtkBox, item: &ClipboardItem) {
             );
             let pic = Picture::for_paintable(&texture);
             pic.set_can_shrink(true);
-            pic.set_size_request(THUMB_SIZE, THUMB_SIZE);
+            pic.set_size_request(thumb_size, thumb_size);
             pic.add_css_class("thumb");
             hbox.append(&pic);
         }
