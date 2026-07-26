@@ -83,7 +83,7 @@ impl PopupWindow {
         status_label.add_css_class("status");
         status_label.set_halign(Align::Start); status_label.set_hexpand(true);
         footer.append(&status_label);
-        let hints = Label::new(Some("↩ Copy  Click=Copy  ⎋ Close  ⌫ Delete  ⌃P Pin"));
+        let hints = Label::new(Some("↩ Copy  ⎋ Close  Del  Ctrl+P Pin"));
         hints.add_css_class("status"); hints.set_halign(Align::End);
         footer.append(&hints);
         vbox.append(&footer);
