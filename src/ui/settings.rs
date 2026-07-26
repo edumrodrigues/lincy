@@ -91,53 +91,48 @@ pub fn show_settings(parent: &Window, current: &Settings) -> SettingsResult {
 
     grid.attach(&Label::new(Some("Shortcut:")), 0, 2, 1, 1);
 
-    // Shortcut capture entry (read-only, captures keys)
-    let shortcut_entry = gtk4::Entry::new();
-    shortcut_entry.set_text(&current.shortcut);
-    shortcut_entry.set_editable(false);
-    shortcut_entry.set_hexpand(true);
-    shortcut_entry.set_placeholder_text(Some("Click here then press keys…"));
+    // Shortcut capture: button + window-level key controller
+    let shortcut_btn = Button::with_label(&current.shortcut);
+    shortcut_btn.set_hexpand(true);
     let captured_label = Rc::new(RefCell::new(current.shortcut.clone()));
     let shortcut_binding = Rc::new(RefCell::new(String::new()));
     let recording = Rc::new(RefCell::new(false));
 
-    let entry_label = shortcut_entry.clone();
-    let rec = recording.clone();
+    let btn = shortcut_btn.clone();
+    let rec_click = recording.clone();
+    shortcut_btn.connect_clicked(move |_| {
+        *rec_click.borrow_mut() = true;
+        btn.set_label("Press keys…");
+    });
+
+    // Window-level key capture — works regardless of widget focus
+    let key_ctrl = gtk4::EventControllerKey::new();
+    let btn_key = shortcut_btn.clone();
+    let rec_key = recording.clone();
     let cap_label = captured_label.clone();
     let cap_binding = shortcut_binding.clone();
-
-    let key_ctrl = gtk4::EventControllerKey::new();
     key_ctrl.connect_key_pressed(move |_ctrl, keyval, _code, mods| {
-        if keyval != Key::Control_L && keyval != Key::Control_R
-            && keyval != Key::Shift_L && keyval != Key::Shift_R
-            && keyval != Key::Alt_L && keyval != Key::Alt_R
-            && keyval != Key::Super_L && keyval != Key::Super_R
-            && keyval != Key::Meta_L && keyval != Key::Meta_R
+        if !*rec_key.borrow() { return Propagation::Proceed; }
+        // Ignore modifier-only presses
+        if keyval == Key::Control_L || keyval == Key::Control_R
+            || keyval == Key::Shift_L || keyval == Key::Shift_R
+            || keyval == Key::Alt_L || keyval == Key::Alt_R
+            || keyval == Key::Super_L || keyval == Key::Super_R
+            || keyval == Key::Meta_L || keyval == Key::Meta_R
         {
-            let human = to_human(mods, keyval);
-            let binding = to_gsettings_binding(mods, keyval);
-            entry_label.set_text(&human);
-            *cap_label.borrow_mut() = human;
-            *cap_binding.borrow_mut() = binding;
-            *rec.borrow_mut() = false;
+            return Propagation::Proceed;
         }
+        let human = to_human(mods, keyval);
+        let binding = to_gsettings_binding(mods, keyval);
+        btn_key.set_label(&human);
+        *cap_label.borrow_mut() = human;
+        *cap_binding.borrow_mut() = binding;
+        *rec_key.borrow_mut() = false;
         Propagation::Stop
     });
-    shortcut_entry.add_controller(key_ctrl);
+    dialog.add_controller(key_ctrl);
 
-    // Focus in = start recording
-    shortcut_entry.connect_has_focus_notify({
-        let e = shortcut_entry.clone();
-        let r = recording.clone();
-        move |entry| {
-            if entry.has_focus() {
-                *r.borrow_mut() = true;
-                e.set_text("Press keys…");
-            }
-        }
-    });
-
-    grid.attach(&shortcut_entry, 1, 2, 1, 1);
+    grid.attach(&shortcut_btn, 1, 2, 1, 1);
 
     let clear_btn = Button::with_label("Clear All History");
     clear_btn.add_css_class("destructive-action");

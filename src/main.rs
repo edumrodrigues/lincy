@@ -48,8 +48,12 @@ fn main() {
 
             log::info!("Starting Lincy");
 
-            // Ensure shortcut is registered on every startup
-            config::register_shortcut(&settings.borrow().shortcut);
+            // Register shortcut after a short delay (avoids GNOME daemon race)
+            let sc = settings.borrow().shortcut.clone();
+            glib::timeout_add_local(std::time::Duration::from_secs(2), move || {
+                config::register_shortcut(&sc);
+                glib::ControlFlow::Break
+            });
 
             let db = match db::Database::new() {
                 Ok(db) => { log::info!("DB ready ({} items)", db.count().unwrap_or(0)); Arc::new(db) }

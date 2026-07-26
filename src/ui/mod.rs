@@ -284,7 +284,11 @@ fn refresh_list(
 fn build_text_row(hbox: &GtkBox, item: &ClipboardItem) {
     let trimmed = item.content.trim_start();
     let first = if trimmed.is_empty() { "(empty)" } else { trimmed.lines().next().unwrap_or(trimmed) };
-    let display: String = if first.len() > 100 { format!("{}…", &first[..100]) } else { first.to_string() };
+    let display: String = if first.chars().count() > 100 {
+        format!("{}…", first.chars().take(100).collect::<String>())
+    } else {
+        first.to_string()
+    };
     let display = display.replace(['\n', '\t'], " ");
     let prefix = if item.pinned { "📌 " } else { "" };
     let label = Label::new(Some(&format!("{}{}", prefix, display)));

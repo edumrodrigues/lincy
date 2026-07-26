@@ -90,7 +90,11 @@ impl Tray for LincyTray {
             } else {
                 let trimmed = entry.content.trim_start();
                 let first = if trimmed.is_empty() { "(empty)" } else { trimmed.lines().next().unwrap_or(trimmed) };
-                let display = if first.len() > 50 { format!("{}…", &first[..50]) } else { first.to_string() };
+                let display = if first.chars().count() > 50 {
+                    format!("{}…", first.chars().take(50).collect::<String>())
+                } else {
+                    first.to_string()
+                };
                 let prefix = if entry.pinned { "📌 " } else { "" };
                 let label = format!("{}{}", prefix, display);
                 let text = entry.content.clone();
