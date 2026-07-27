@@ -86,12 +86,3 @@ lincy
 RUST_LOG=debug lincy
 ```
 
-## Creating a release
-
-```bash
-git checkout v1.0
-git tag -a v0.X.Y -m "v0.X.Y"
-git push origin v0.X.Y
-```
-
-The CI will build the `.deb` and `.tar.gz` and attach them to a new GitHub Release.
